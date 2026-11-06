@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จองคิวนวดและดูดวง · Harley-Davidson of Bangkok</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Prompt:wght@500;700;800&family=IBM+Plex+Sans+Thai:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #e6e3dc;
+  --surface: #f3f1ec;
+  --ink: #1f1d1a;
+  --ink-soft: #5d5952;
+  --line: #bdb8ad;
+  --orange: #e5560f;
+  --orange-ink: #ffffff;
+  --massage: #1f6b5b;
+  --massage-bg: #d5e6e0;
+  --fortune: #4a3a86;
+  --fortune-bg: #dcd7ee;
+  --taken-bg: #d3cfc6;
+  --focus: #0b57d0;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #1b1a18;
+    --surface: #262421;
+    --ink: #efece5;
+    --ink-soft: #a8a398;
+    --line: #47433c;
+    --orange: #ff7a2e;
+    --orange-ink: #1b1a18;
+    --massage: #6fd0b8;
+    --massage-bg: #1d3a33;
+    --fortune: #b7a8f2;
+    --fortune-bg: #312a52;
+    --taken-bg: #33302b;
+    --focus: #8ab4f8;
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: "IBM Plex Sans Thai", "Noto Sans Thai", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.6;
+}
+button, input { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+.wrap { max-width: 720px; margin: 0 auto; padding: 0 14px 64px; }
+
+/* Header: the date is the one loud element */
+header { padding: 22px 0 14px; }
+.venue { margin: 0; font-size: 14px; color: var(--ink-soft); }
+.dateline {
+  display: flex; align-items: stretch; gap: 14px; margin-top: 10px;
+}
+.daybox {
+  background: var(--orange); color: var(--orange-ink);
+  font-family: "Prompt", sans-serif; font-weight: 800;
+  padding: 6px 14px 8px; text-align: center; line-height: 1;
+  min-width: 92px; display: flex; flex-direction: column; justify-content: center;
+}
+.daybox .d { font-size: 56px; letter-spacing: -1px; }
+.daybox .m { font-size: 16px; font-weight: 700; margin-top: 4px; }
+.title h1 {
+  margin: 0; font-family: "Prompt", sans-serif; font-weight: 800;
+  font-size: 26px; line-height: 1.2;
+}
+.title p { margin: 6px 0 0; color: var(--ink-soft); font-size: 14px; }
+
+/* Tabs */
+.tabs {
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  border: 2px solid var(--ink); margin: 18px 0 16px; background: var(--surface);
+}
+.tab {
+  background: none; border: 0; padding: 10px 6px; cursor: pointer;
+  font-weight: 600; min-height: 48px; border-right: 2px solid var(--ink);
+}
+.tab:last-child { border-right: 0; }
+.tab small { display: block; font-weight: 400; font-size: 12px; color: var(--ink-soft); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--bg); }
+.tab[aria-selected="true"] small { color: var(--bg); opacity: .8; }
+
+.notice {
+  font-size: 13px; color: var(--ink-soft); margin: 0 0 14px;
+  border-left: 3px solid var(--line); padding-left: 10px;
+}
+
+/* Massage board */
+.board { background: var(--surface); border: 1px solid var(--line); }
+.board-head, .board-row {
+  display: grid; grid-template-columns: 56px repeat(3, 1fr);
+}
+.board-head > div {
+  padding: 8px 4px; text-align: center; font-weight: 600; font-size: 14px;
+  border-bottom: 2px solid var(--ink);
+}
+.board-row .time {
+  display: flex; align-items: center; justify-content: center;
+  font-variant-numeric: tabular-nums; font-size: 14px; color: var(--ink-soft);
+  border-bottom: 1px solid var(--line);
+}
+.cell-wrap { padding: 3px; border-bottom: 1px solid var(--line); }
+
+.slot {
+  width: 100%; min-height: 46px; border: 2px solid transparent; cursor: pointer;
+  padding: 4px 6px; text-align: center; font-size: 13px; line-height: 1.3;
+  display: flex; flex-direction: column; justify-content: center; align-items: center;
+  overflow: hidden; background: var(--massage-bg); border-color: var(--massage); color: var(--ink);
+  font-weight: 600;
+}
+.slot:hover:not(:disabled) { background: var(--massage); color: var(--surface); }
+.slot.fortune { background: var(--fortune-bg); border-color: var(--fortune); }
+.slot.fortune:hover:not(:disabled) { background: var(--fortune); color: var(--surface); }
+.slot:disabled, .slot.taken {
+  cursor: not-allowed; border-color: transparent; color: var(--ink-soft); font-weight: 400;
+  background: repeating-linear-gradient(135deg, var(--taken-bg) 0 6px, transparent 6px 12px), var(--taken-bg);
+}
+.slot.mine {
+  cursor: pointer; background: var(--orange); color: var(--orange-ink); border-color: var(--orange); font-weight: 600;
+}
+.slot .nm { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.slot.taken:not(:disabled) { cursor: pointer; }
+#status { border-left-color: var(--orange); }
+
+/* Fortune list */
+.flist { display: grid; gap: 8px; }
+.frow {
+  display: grid; grid-template-columns: 112px 1fr; gap: 8px; align-items: stretch;
+  background: var(--surface); border: 1px solid var(--line); padding: 6px;
+}
+.frow .t {
+  display: flex; align-items: center; justify-content: center; font-weight: 600;
+  font-variant-numeric: tabular-nums; font-size: 15px;
+}
+.frow .slot { flex-direction: row; justify-content: space-between; text-align: left; min-height: 48px; padding: 4px 12px; font-size: 15px; }
+
+/* Summary */
+.sumgroup { margin-bottom: 22px; }
+.sumgroup h2 { font-family: "Prompt", sans-serif; font-size: 18px; margin: 0 0 8px; }
+.sumrow {
+  display: grid; grid-template-columns: 112px 1fr auto; gap: 8px; align-items: center;
+  padding: 8px 10px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 6px;
+}
+.sumrow .t { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; }
+.sumrow .who { font-size: 14px; }
+.sumrow .who span { color: var(--ink-soft); font-size: 12px; display: block; }
+.sumrow.mine { border-color: var(--orange); border-width: 2px; }
+.empty { color: var(--ink-soft); font-size: 14px; padding: 6px 0; }
+.link-btn {
+  background: none; border: 2px solid var(--ink); padding: 4px 12px; cursor: pointer; font-size: 13px; min-height: 36px;
+}
+.link-btn:hover { background: var(--ink); color: var(--bg); }
+.copy-btn { margin-bottom: 14px; }
+
+/* Dialog */
+dialog {
+  border: 2px solid var(--ink); background: var(--surface); color: var(--ink);
+  padding: 0; width: min(92vw, 420px);
+}
+dialog::backdrop { background: rgba(0,0,0,.55); }
+.dlg { padding: 20px; }
+.dlg h2 { margin: 0 0 4px; font-family: "Prompt", sans-serif; font-size: 20px; }
+.dlg .when { margin: 0 0 16px; color: var(--ink-soft); font-size: 14px; }
+.dlg label { display: block; font-weight: 600; margin-bottom: 6px; }
+.dlg input {
+  width: 100%; padding: 10px 12px; border: 2px solid var(--ink); background: var(--bg); min-height: 48px;
+}
+.dlg .err { color: #b3261e; font-size: 14px; min-height: 22px; margin: 6px 0 0; }
+@media (prefers-color-scheme: dark) { .dlg .err { color: #ff8a80; } }
+.dlg .actions { display: flex; gap: 10px; margin-top: 12px; }
+.btn {
+  flex: 1; min-height: 48px; border: 2px solid var(--ink); background: none; cursor: pointer; font-weight: 600;
+}
+.btn.primary { background: var(--orange); border-color: var(--orange); color: var(--orange-ink); }
+.btn:disabled { opacity: .6; cursor: wait; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 10px 18px; font-size: 14px;
+  max-width: 90vw; z-index: 10; text-align: center;
+}
+.toast[hidden] { display: none; }
+
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--ink-soft); margin: 0 0 12px; }
+.legend i { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; border: 2px solid; }
+.legend .l-free { background: var(--massage-bg); border-color: var(--massage); }
+.legend .l-taken { background: var(--taken-bg); border-color: var(--taken-bg); }
+.legend .l-mine { background: var(--orange); border-color: var(--orange); }
+
+@media (max-width: 380px) {
+  .daybox { min-width: 78px; } .daybox .d { font-size: 46px; }
+  .title h1 { font-size: 22px; }
+  .board-head, .board-row { grid-template-columns: 48px repeat(3, 1fr); }
+  .slot { font-size: 12px; padding: 4px 2px; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .slot { transition: background-color .12s, color .12s; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <p class="venue">Harley-Davidson of Bangkok (พระราม 9)</p>
+    <div class="dateline">
+      <div class="daybox" aria-hidden="true"><span class="d">13</span><span class="m">พ.ย. 69</span></div>
+      <div class="title">
+        <h1>จองคิวนวดและดูดวง</h1>
+        <p>วันศุกร์ที่ 13 พฤศจิกายน 2569<br>แตะช่วงเวลาที่ว่างแล้วใส่ชื่อเพื่อจอง</p>
+      </div>
+    </div>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="บริการ">
+    <button class="tab" role="tab" id="tab-massage" aria-selected="true" aria-controls="panel">นวด<small id="cnt-massage">ว่าง 27/27</small></button>
+    <button class="tab" role="tab" id="tab-fortune" aria-selected="false" aria-controls="panel">ดูดวง<small id="cnt-fortune">ว่าง 10/10</small></button>
+    <button class="tab" role="tab" id="tab-list" aria-selected="false" aria-controls="panel">รายการจอง<small id="cnt-list">ทั้งหมด 0</small></button>
+  </div>
+
+  <p class="notice" id="status" hidden></p>
+
+  <main id="panel" role="tabpanel" aria-live="polite"></main>
+</div>
+
+<dialog id="dlg" aria-labelledby="dlg-title">
+  <div class="dlg">
+    <h2 id="dlg-title"></h2>
+    <p class="when" id="dlg-when"></p>
+    <label for="nm">ชื่อผู้จอง</label>
+    <input id="nm" type="text" maxlength="40" autocomplete="name" placeholder="เช่น คุณสมชาย">
+    <p class="err" id="dlg-err" role="alert"></p>
+    <div class="actions">
+      <button class="btn" id="dlg-cancel" type="button">ยกเลิก</button>
+      <button class="btn primary" id="dlg-ok" type="button">ยืนยันการจอง</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+/* ---------- Config ---------- */
+const EVENT_DATE_TEXT = "13 พ.ย. 2569";
+const MASSAGE_SLOT_MIN = 20, MASSAGE_START = 15 * 60, MASSAGE_END = 18 * 60;
+const FORTUNE_SLOT_MIN = 30, FORTUNE_START = 15 * 60, FORTUNE_END = 20 * 60;
+const THERAPISTS = [1, 2, 3];
+
+const pad = n => String(n).padStart(2, "0");
+const hm = m => `${pad(Math.floor(m / 60))}:${pad(m % 60)}`;
+const range = (s, d) => `${hm(s)}–${hm(s + d)}`;
+
+const MASSAGE_TIMES = [];
+for (let t = MASSAGE_START; t + MASSAGE_SLOT_MIN <= MASSAGE_END; t += MASSAGE_SLOT_MIN) MASSAGE_TIMES.push(t);
+const FORTUNE_TIMES = [];
+for (let t = FORTUNE_START; t + FORTUNE_SLOT_MIN <= FORTUNE_END; t += FORTUNE_SLOT_MIN) FORTUNE_TIMES.push(t);
+
+const massageKey = (th, t) => `bk:m${th}:${pad(Math.floor(t / 60))}${pad(t % 60)}`;
+const fortuneKey = t => `bk:f1:${pad(Math.floor(t / 60))}${pad(t % 60)}`;
+
+/* ---------- Backend ---------- */
+// วาง URL ของ Google Apps Script Web App ตรงนี้ (ถ้ายังไม่วาง จะทำงานโหมดทดลองในเครื่อง)
+const API_URL = "https://script.google.com/macros/s/AKfycbwTta_hXvd2oZZe8Pfson_bhNyBK9N-rhaBVMC2tXmNYLCEjdNq17Y4-yCN8WtIOOG-GA/exec";
+const DEMO = API_URL.startsWith("PASTE");
+
+const LS = {
+  get(k) { try { return JSON.parse(localStorage.getItem(k)); } catch (e) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
+};
+const rid = () => Math.random().toString(36).slice(2, 10);
+
+function demoApi(action, p) {
+  const all = LS.get("demo_bk") || [];
+  if (action === "list" || action === "adminList")
+    return { ok: true, bookings: all.map(b => ({ key: b.key, id: b.id, name: b.name })) };
+  if (action === "book") {
+    if (all.some(b => b.key === p.key)) return { ok: false, error: "taken" };
+    const id = rid(), token = rid();
+    all.push({ key: p.key, id, token, name: p.name }); LS.set("demo_bk", all);
+    return { ok: true, id, token };
+  }
+  if (action === "cancel") {
+    const i = all.findIndex(b => b.key === p.key && (p.pin || b.token === p.token));
+    if (i < 0) return { ok: false, error: "notfound" };
+    all.splice(i, 1); LS.set("demo_bk", all);
+    return { ok: true };
+  }
+  return { ok: false };
+}
+
+async function api(action, payload = {}) {
+  if (DEMO) return demoApi(action, payload);
+  try {
+    if (action === "list") {
+      const r = await fetch(API_URL, { cache: "no-store" });
+      return await r.json();
+    }
+    // ส่งเป็น text/plain เพื่อเลี่ยง CORS preflight ของ Apps Script
+    const r = await fetch(API_URL, { method: "POST", body: JSON.stringify({ action, ...payload }) });
+    return await r.json();
+  } catch (e) { return { ok: false, error: "network" }; }
+}
+
+/* ---------- State ---------- */
+let bookings = {};   // key -> {id, name}
+let mine = LS.get("my_bookings") || {};   // key -> {id, token, name} เก็บในเครื่องผู้จอง
+let tab = "massage";
+let pending = null;
+let busy = false;
+let admin = false;
+let adminPin = "";
+
+const owns = k => !!mine[k];
+const nameOf = k => (mine[k] && mine[k].name) || (bookings[k] && bookings[k].name) || "จองแล้ว";
+
+function setStatus(msg) {
+  const el = document.getElementById("status");
+  el.textContent = msg; el.hidden = !msg;
+}
+
+async function refresh() {
+  const res = admin ? await api("adminList", { pin: adminPin }) : await api("list");
+  if (res && res.ok) {
+    const next = {};
+    for (const b of res.bookings) next[b.key] = { id: b.id, name: b.name };
+    bookings = next;
+    const kept = {};
+    for (const [k, r] of Object.entries(mine)) if (next[k] && next[k].id === r.id) kept[k] = r;
+    mine = kept; LS.set("my_bookings", mine);
+    setStatus(DEMO ? "โหมดทดลอง: ข้อมูลเก็บในเครื่องนี้เท่านั้น ยังไม่ได้เชื่อมต่อ Google Sheets" : "");
+  } else {
+    setStatus("เชื่อมต่อเซิร์ฟเวอร์ไม่ได้ กำลังแสดงข้อมูลล่าสุดที่โหลดไว้");
+  }
+  render();
+}
+
+/* ---------- Helpers ---------- */
+function h(tag, attrs = {}, ...kids) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") el.className = v;
+    else if (k.startsWith("on")) el.addEventListener(k.slice(2), v);
+    else if (v === true) el.setAttribute(k, "");
+    else if (v !== false && v != null) el.setAttribute(k, v);
+  }
+  for (const kid of kids.flat()) el.append(kid instanceof Node ? kid : document.createTextNode(kid));
+  return el;
+}
+function toast(msg) {
+  const t = document.getElementById("toast");
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2800);
+}
+function describe(key) {
+  const [, id, hhmm] = key.split(":");
+  const start = parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(2), 10);
+  if (id[0] === "m") return { service: "นวด", who: `หมอนวดคนที่ ${id.slice(1)}`, start, dur: MASSAGE_SLOT_MIN };
+  return { service: "ดูดวง", who: "หมอดู", start, dur: FORTUNE_SLOT_MIN };
+}
+
+/* ---------- Render ---------- */
+function slotButton(key, cls, label) {
+  const b = bookings[key];
+  if (b) {
+    const isMine = owns(key);
+    const btn = h("button", {
+      class: `slot ${cls} ${isMine ? "mine" : "taken"}`, type: "button",
+      "aria-label": isMine ? `การจองของคุณ ${nameOf(key)} กดเพื่อยกเลิก` : `จองแล้ว โดย ${nameOf(key)}`,
+      disabled: !(isMine || admin),
+      onclick: () => (isMine || admin) && cancelBooking(key)
+    }, h("span", { class: "nm" }, nameOf(key)), (isMine || admin) ? h("span", { class: "nm", style: "font-size:11px;font-weight:400" }, "แตะเพื่อยกเลิก") : "");
+    return btn;
+  }
+  return h("button", { class: `slot ${cls}`, type: "button", onclick: () => openDialog(key) }, label);
+}
+
+function renderMassage() {
+  const wrap = h("div");
+  wrap.append(legend());
+  wrap.append(h("p", { class: "notice" }, "นวด 15:00–18:00 ครั้งละ 20 นาที · หมอนวด 3 คน"));
+  const board = h("div", { class: "board", role: "table" });
+  board.append(h("div", { class: "board-head", role: "row" },
+    h("div"), ...THERAPISTS.map(n => h("div", { role: "columnheader" }, `หมอ ${n}`))));
+  for (const t of MASSAGE_TIMES) {
+    board.append(h("div", { class: "board-row", role: "row" },
+      h("div", { class: "time", role: "rowheader" }, hm(t)),
+      ...THERAPISTS.map(n => h("div", { class: "cell-wrap", role: "cell" }, slotButton(massageKey(n, t), "", "ว่าง")))));
+  }
+  wrap.append(board);
+  return wrap;
+}
+
+function renderFortune() {
+  const wrap = h("div");
+  wrap.append(legend("fortune"));
+  wrap.append(h("p", { class: "notice" }, "ดูดวง 15:00–20:00 ครั้งละ 30 นาที · หมอดู 1 คน"));
+  const list = h("div", { class: "flist" });
+  for (const t of FORTUNE_TIMES) {
+    list.append(h("div", { class: "frow" },
+      h("div", { class: "t" }, range(t, FORTUNE_SLOT_MIN)),
+      slotButton(fortuneKey(t), "fortune", "ว่าง · แตะเพื่อจอง")));
+  }
+  wrap.append(list);
+  return wrap;
+}
+
+function legend(kind) {
+  const free = h("span", {}, h("i", { class: "l-free", style: kind === "fortune" ? "background:var(--fortune-bg);border-color:var(--fortune)" : "" }), "ว่าง");
+  return h("div", { class: "legend" }, free,
+    h("span", {}, h("i", { class: "l-taken" }), "มีคนจองแล้ว"),
+    h("span", {}, h("i", { class: "l-mine" }), "คิวของคุณ"));
+}
+
+function renderList() {
+  const wrap = h("div");
+  const entries = Object.entries(bookings).map(([k, v]) => ({ k, v, ...describe(k) }));
+  const group = (title, svc) => {
+    const rows = entries.filter(e => e.service === svc).sort((a, b) => a.start - b.start || a.k.localeCompare(b.k));
+    const g = h("section", { class: "sumgroup" }, h("h2", {}, `${title} (${rows.length})`));
+    if (!rows.length) g.append(h("p", { class: "empty" }, "ยังไม่มีผู้จอง"));
+    for (const e of rows) {
+      const isMine = owns(e.k);
+      g.append(h("div", { class: `sumrow${isMine ? " mine" : ""}` },
+        h("div", { class: "t" }, range(e.start, e.dur)),
+        h("div", { class: "who" }, nameOf(e.k), h("span", {}, e.who)),
+        (isMine || admin) ? h("button", { class: "link-btn", type: "button", onclick: () => cancelBooking(e.k) }, "ยกเลิก") : ""));
+    }
+    return g;
+  };
+  wrap.append(h("button", { class: "link-btn copy-btn", type: "button", onclick: copySummary }, "คัดลอกรายการจอง"));
+  wrap.append(group("นวด", "นวด"), group("ดูดวง", "ดูดวง"));
+  return wrap;
+}
+
+function render() {
+  const total = Object.keys(bookings).length;
+  const mCount = Object.keys(bookings).filter(k => k.startsWith("bk:m")).length;
+  const fCount = Object.keys(bookings).filter(k => k.startsWith("bk:f")).length;
+  const mAll = MASSAGE_TIMES.length * THERAPISTS.length, fAll = FORTUNE_TIMES.length;
+  document.getElementById("cnt-massage").textContent = `ว่าง ${mAll - mCount}/${mAll}`;
+  document.getElementById("cnt-fortune").textContent = `ว่าง ${fAll - fCount}/${fAll}`;
+  document.getElementById("cnt-list").textContent = `ทั้งหมด ${total}`;
+  for (const t of ["massage", "fortune", "list"])
+    document.getElementById("tab-" + t).setAttribute("aria-selected", String(tab === t));
+  const panel = document.getElementById("panel");
+  const scroll = window.scrollY;
+  panel.replaceChildren(tab === "massage" ? renderMassage() : tab === "fortune" ? renderFortune() : renderList());
+  window.scrollTo(0, scroll);
+}
+
+/* ---------- Booking flow ---------- */
+const dlg = document.getElementById("dlg");
+const nameInput = document.getElementById("nm");
+const errEl = document.getElementById("dlg-err");
+const okBtn = document.getElementById("dlg-ok");
+
+function openDialog(key) {
+  pending = key;
+  const d = describe(key);
+  document.getElementById("dlg-title").textContent = `จองคิว${d.service}`;
+  document.getElementById("dlg-when").textContent = `${EVENT_DATE_TEXT} · ${range(d.start, d.dur)} น. · ${d.who}`;
+  errEl.textContent = "";
+  nameInput.value = localStorageSafeName();
+  if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
+  nameInput.focus();
+}
+function localStorageSafeName() { return LS.get("last_name") || ""; }
+
+async function confirmBooking() {
+  if (busy || !pending) return;
+  const name = nameInput.value.trim().replace(/\s+/g, " ");
+  if (!name) { errEl.textContent = "กรุณาใส่ชื่อผู้จอง"; nameInput.focus(); return; }
+  busy = true; okBtn.disabled = true; errEl.textContent = "";
+  const key = pending;
+  const res = await api("book", { key, name });
+  busy = false; okBtn.disabled = false;
+  dlg.close();
+  if (res.ok) {
+    mine[key] = { id: res.id, token: res.token, name };
+    LS.set("my_bookings", mine); LS.set("last_name", name);
+    const d = describe(key);
+    toast(`จองแล้ว: ${d.service} ${hm(d.start)} น. ${name}`);
+  } else if (res.error === "taken") {
+    toast("ช่วงเวลานี้มีคนจองไปแล้ว กรุณาเลือกช่วงอื่น");
+  } else if (res.error === "busy") {
+    toast("ระบบกำลังรับจองหลายรายการ ลองใหม่อีกครั้ง");
+  } else {
+    toast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
+  }
+  await refresh();
+}
+
+async function cancelBooking(key) {
+  const d = describe(key);
+  if (!confirm(`ยกเลิกคิว${d.service} ${range(d.start, d.dur)} ของ ${nameOf(key)} ใช่ไหม`)) return;
+  const rec = mine[key];
+  const res = await api("cancel", admin ? { key, pin: adminPin } : { key, token: rec && rec.token });
+  if (res.ok) { delete mine[key]; LS.set("my_bookings", mine); toast("ยกเลิกคิวแล้ว"); }
+  else toast("ยกเลิกไม่สำเร็จ ลองใหม่อีกครั้ง");
+  await refresh();
+}
+
+async function copySummary() {
+  const lines = [`รายการจองคิว ${EVENT_DATE_TEXT} · Harley-Davidson of Bangkok (พระราม 9)`];
+  const entries = Object.entries(bookings).map(([k, v]) => ({ k, v, ...describe(k) }));
+  for (const svc of ["นวด", "ดูดวง"]) {
+    lines.push("", `${svc}`);
+    const rows = entries.filter(e => e.service === svc).sort((a, b) => a.start - b.start);
+    if (!rows.length) lines.push("- ยังไม่มีผู้จอง");
+    rows.forEach(e => lines.push(`- ${range(e.start, e.dur)}  ${nameOf(e.k)} (${e.who})`));
+  }
+  const text = lines.join("\n");
+  try { await navigator.clipboard.writeText(text); toast("คัดลอกรายการแล้ว"); }
+  catch (e) {
+    const ta = h("textarea", { style: "position:fixed;opacity:0" }); ta.value = text;
+    document.body.append(ta); ta.select();
+    try { document.execCommand("copy"); toast("คัดลอกรายการแล้ว"); } catch (_) { toast("คัดลอกไม่สำเร็จ"); }
+    ta.remove();
+  }
+}
+
+/* ---------- Wiring ---------- */
+document.getElementById("tab-massage").onclick = () => { tab = "massage"; render(); };
+document.getElementById("tab-fortune").onclick = () => { tab = "fortune"; render(); };
+document.getElementById("tab-list").onclick = () => { tab = "list"; render(); };
+document.getElementById("dlg-cancel").onclick = () => dlg.close();
+okBtn.onclick = confirmBooking;
+nameInput.addEventListener("keydown", e => { if (e.key === "Enter") confirmBooking(); });
+dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+
+(async function init() {
+  const wantAdmin = new URLSearchParams(location.search).get("admin") === "1";
+  if (wantAdmin) {
+    const pin = sessionStorage.getItem("pin") || prompt("รหัสสำหรับทีมงาน");
+    if (pin) {
+      const r = await api("adminList", { pin });
+      if (r.ok) { admin = true; adminPin = pin; sessionStorage.setItem("pin", pin); toast("โหมดทีมงาน: ยกเลิกคิวได้ทุกรายการ"); }
+      else { sessionStorage.removeItem("pin"); toast("รหัสไม่ถูกต้อง"); }
+    }
+  }
+  render();
+  refresh();
+})();
+setInterval(() => { if (!dlg.open && !busy && !document.hidden) refresh(); }, 15000);
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+</script>
+</body>
+</html>
