@@ -164,6 +164,15 @@ header { padding: 22px 0 14px; }
 .link-btn:hover { background: var(--ink); color: var(--bg); }
 .copy-btn { margin-bottom: 14px; }
 
+.adminbox { border: 2px dashed var(--orange); padding: 12px 14px; margin-bottom: 22px; background: var(--surface); }
+.adminbox h2 { font-family: "Prompt", sans-serif; font-size: 16px; margin: 0 0 4px; }
+.adminbox p { margin: 0 0 10px; font-size: 13px; color: var(--ink-soft); }
+.adminbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+.link-btn.danger { border-color: #b3261e; color: #b3261e; }
+.link-btn.danger:hover { background: #b3261e; color: #fff; }
+@media (prefers-color-scheme: dark) { .link-btn.danger { border-color: #ff8a80; color: #ff8a80; } .link-btn.danger:hover { background: #ff8a80; color: #1b1a18; } }
+.badge { display: inline-block; background: var(--orange); color: var(--orange-ink); font-size: 12px; font-weight: 600; padding: 0 8px; margin-left: 6px; }
+
 /* Dialog */
 dialog {
   border: 2px solid var(--ink); background: var(--surface); color: var(--ink);
@@ -213,7 +222,7 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 <body>
 <div class="wrap">
   <header>
-    <p class="venue">Harley-Davidson of Bangkok (พระราม 9)</p>
+    <p class="venue">Harley-Davidson of Bangkok (พระราม 9) <span class="badge" id="adminflag" hidden>โหมดทีมงาน</span></p>
     <div class="dateline">
       <div class="daybox" aria-hidden="true"><span class="d">13</span><span class="m">พ.ย. 69</span></div>
       <div class="title">
@@ -271,7 +280,7 @@ const fortuneKey = t => `bk:f1:${pad(Math.floor(t / 60))}${pad(t % 60)}`;
 
 /* ---------- Backend ---------- */
 // วาง URL ของ Google Apps Script Web App ตรงนี้ (ถ้ายังไม่วาง จะทำงานโหมดทดลองในเครื่อง)
-const API_URL = "https://script.google.com/macros/s/AKfycbwTta_hXvd2oZZe8Pfson_bhNyBK9N-rhaBVMC2tXmNYLCEjdNq17Y4-yCN8WtIOOG-GA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbw6Hqy7txAmWkVVS1xqs0mnlhknaSTPaeh5s7BmA0WuFqw7ByQt-AmUTPkSM6b41uCEDA/exec";
 const DEMO = API_URL.startsWith("PASTE");
 
 const LS = {
@@ -289,6 +298,12 @@ function demoApi(action, p) {
     const id = rid(), token = rid();
     all.push({ key: p.key, id, token, name: p.name }); LS.set("demo_bk", all);
     return { ok: true, id, token };
+  }
+  if (action === "reset") {
+    const pre = p.scope === "massage" ? "bk:m" : p.scope === "fortune" ? "bk:f" : "bk:";
+    const keep = all.filter(b => !b.key.startsWith(pre));
+    LS.set("demo_bk", keep);
+    return { ok: true, count: all.length - keep.length };
   }
   if (action === "cancel") {
     const i = all.findIndex(b => b.key === p.key && (p.pin || b.token === p.token));
@@ -439,6 +454,15 @@ function renderList() {
     return g;
   };
   wrap.append(h("button", { class: "link-btn copy-btn", type: "button", onclick: copySummary }, "คัดลอกรายการจอง"));
+  if (admin) {
+    wrap.append(h("section", { class: "adminbox" },
+      h("h2", {}, "เครื่องมือทีมงาน"),
+      h("p", {}, "ล้างรายการจองเพื่อเริ่มรอบใหม่ ระบบจะให้พิมพ์ RESET ยืนยันก่อนลบทุกครั้ง"),
+      h("div", { class: "adminbtns" },
+        h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("massage") }, "ล้างคิวนวด"),
+        h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("fortune") }, "ล้างคิวดูดวง"),
+        h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("all") }, "ล้างทั้งหมด"))));
+  }
   wrap.append(group("นวด", "นวด"), group("ดูดวง", "ดูดวง"));
   return wrap;
 }
@@ -453,6 +477,7 @@ function render() {
   document.getElementById("cnt-list").textContent = `ทั้งหมด ${total}`;
   for (const t of ["massage", "fortune", "list"])
     document.getElementById("tab-" + t).setAttribute("aria-selected", String(tab === t));
+  document.getElementById("adminflag").hidden = !admin;
   const panel = document.getElementById("panel");
   const scroll = window.scrollY;
   panel.replaceChildren(tab === "massage" ? renderMassage() : tab === "fortune" ? renderFortune() : renderList());
@@ -508,6 +533,24 @@ async function cancelBooking(key) {
   const res = await api("cancel", admin ? { key, pin: adminPin } : { key, token: rec && rec.token });
   if (res.ok) { delete mine[key]; LS.set("my_bookings", mine); toast("ยกเลิกคิวแล้ว"); }
   else toast("ยกเลิกไม่สำเร็จ ลองใหม่อีกครั้ง");
+  await refresh();
+}
+
+async function resetBookings(scope) {
+  const label = { all: "การจองทั้งหมด", massage: "คิวนวด", fortune: "คิวดูดวง" }[scope];
+  const pre = scope === "massage" ? "bk:m" : scope === "fortune" ? "bk:f" : "bk:";
+  const n = Object.keys(bookings).filter(k => k.startsWith(pre)).length;
+  if (!n) { toast("ไม่มีรายการให้ล้าง"); return; }
+  const note = DEMO ? "ล้างแล้วย้อนกลับไม่ได้" : "ระบบจะสำรองรายการไว้ในชีต Archive";
+  const typed = prompt(`จะล้าง${label} จำนวน ${n} รายการ\n${note}\n\nพิมพ์ RESET เพื่อยืนยัน`);
+  if (typed === null) return;
+  if (typed.trim().toUpperCase() !== "RESET") { toast("ยังไม่ได้ล้าง เพราะข้อความไม่ตรงกับ RESET"); return; }
+  const res = await api("reset", { pin: adminPin, scope, confirm: "RESET" });
+  if (res.ok) {
+    for (const k of Object.keys(mine)) if (k.startsWith(pre)) delete mine[k];
+    LS.set("my_bookings", mine);
+    toast(`ล้าง${label}แล้ว ${res.count} รายการ`);
+  } else toast("ล้างไม่สำเร็จ ลองใหม่อีกครั้ง");
   await refresh();
 }
 
