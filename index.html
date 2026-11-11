@@ -260,7 +260,7 @@ a.link-btn[hidden] { display: none; }
   <div class="dlg">
     <h2 id="dlg-title"></h2>
     <p class="when" id="dlg-when"></p>
-    <p class="hint" id="dlg-hint">กรุณาใส่ชื่อและเบอร์โทรศัพท์ เพื่อให้ทีมงานติดต่อได้สะดวก เช่น ตอนเลื่อนคิวหรือเปลี่ยนเวลา เบอร์โทรไม่แสดงให้ผู้จองคนอื่นเห็น</p>
+    <p class="hint" id="dlg-hint">กรุณาใส่ชื่อและเบอร์โทรศัพท์ เพื่อให้ทีมงานติดต่อได้สะดวก เช่น ตอนเลื่อนคิวหรือเปลี่ยนเวลา เบอร์โทรไม่แสดงให้ผู้จองคนอื่นเห็น<br>เบอร์โทร 1 เบอร์จองนวดได้ 1 คิว และดูดวงได้ 1 คิว โดยเวลาของสองบริการต้องไม่ซ้อนกัน</p>
     <label for="nm">ชื่อผู้จอง</label>
     <input id="nm" type="text" maxlength="40" autocomplete="name" placeholder="เช่น คุณสมชาย" aria-describedby="dlg-hint">
     <label for="ph" class="mt">เบอร์โทรศัพท์</label>
@@ -329,9 +329,21 @@ function fmtPhone(p) {
 }
 const PHONE_FORMAT_HINT = "เบอร์โทรศัพท์ไม่ถูกต้อง ใส่ตัวเลข 9–10 หลัก เช่น 081-234-5678";
 
+// เซิร์ฟเวอร์ตอบ dup_service / time_overlap พร้อม conflictKey (รหัสช่องของคิวที่ชน) — ไม่มีชื่อหรือเบอร์ใครมาด้วย
+function ruleMessage(res) {
+  if (!res || (res.error !== "dup_service" && res.error !== "time_overlap")) return "";
+  const c = res.conflictKey ? describe(res.conflictKey) : null;
+  const when = c ? `${range(c.start, c.dur)} น.` : "";
+  if (res.error === "dup_service") {
+    const svc = c ? c.service : "บริการนี้";
+    return `เบอร์โทรนี้จอง${svc}ไว้แล้ว${when ? ` (${when})` : ""} จองได้บริการละ 1 คิว ถ้าต้องการเปลี่ยนเวลา ให้ยกเลิกคิวเดิมก่อน`;
+  }
+  return `เวลานี้ชนกับคิว${c ? c.service : "อีกบริการ"}ของเบอร์นี้${when ? ` (${when})` : ""} กรุณาเลือกเวลาที่ไม่ซ้อนกัน`;
+}
+
 /* ---------- Backend ---------- */
 // วาง URL ของ Google Apps Script Web App ตรงนี้ (ถ้ายังไม่วาง จะทำงานโหมดทดลองในเครื่อง)
-const API_URL = "https://script.google.com/macros/s/AKfycbx3HfL2DECj4O6XgouEwJTRa5ShawREJUhCIsZgtGIKtEjsZYjByty26U9LX2ESSkRSsQ/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbyUXMz9TR6j6K2GAX7bM77PCOTz7-A6g5nn2VBpdeKc9RT9wWI-CGugxg1E0p9OXk4-BA/exec";
 const DEMO = API_URL.startsWith("PASTE");
 
 const LS = {
@@ -339,6 +351,16 @@ const LS = {
   set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) {} }
 };
 const rid = () => Math.random().toString(36).slice(2, 10);
+
+function phoneConflict(phone, key, all, self) {
+  if (!phone) return null;
+  const me = describe(key);
+  const others = all.filter(b => b !== self && b.phone === phone);
+  const dup = others.find(b => describe(b.key).service === me.service);
+  if (dup) return { error: "dup_service", conflictKey: dup.key };
+  const clash = others.find(b => { const o = describe(b.key); return me.start < o.start + o.dur && o.start < me.start + me.dur; });
+  return clash ? { error: "time_overlap", conflictKey: clash.key } : null;
+}
 
 function demoApi(action, p) {
   const all = LS.get("demo_bk") || [];
@@ -350,6 +372,8 @@ function demoApi(action, p) {
     const phone = normPhone(p.phone);
     if (!phone) return { ok: false, error: "bad_phone" };
     if (all.some(b => b.key === p.key)) return { ok: false, error: "taken" };
+    const conflict = phoneConflict(phone, p.key, all, null);
+    if (conflict) return { ok: false, ...conflict };
     const id = rid(), token = rid();
     all.push({ key: p.key, id, token, name: p.name, phone }); LS.set("demo_bk", all);
     return { ok: true, id, token, phone };
@@ -371,6 +395,10 @@ function demoApi(action, p) {
     if (to !== p.key) {
       if (to.split(":")[1][0] !== p.key.split(":")[1][0]) return { ok: false, error: "wrong_service" };
       if (all.some(x => x.key === to)) return { ok: false, error: "taken" };
+    }
+    if (to !== p.key || (hasPhone && phone !== (b.phone || ""))) {
+      const conflict = phoneConflict(hasPhone ? phone : (b.phone || ""), to, all, b);
+      if (conflict) return { ok: false, ...conflict };
     }
     if (hasName) b.name = name;
     if (hasPhone) b.phone = phone;
@@ -603,6 +631,12 @@ async function confirmBooking() {
   const key = pending;
   const res = await api("book", { key, name, phone });
   busy = false; okBtn.disabled = false;
+  const ruleMsg = ruleMessage(res);
+  if (ruleMsg) {   // เบอร์นี้จองครบแล้ว หรือเวลาชนกัน: เก็บหน้าต่างไว้ ให้แก้เบอร์หรือเลือกเวลาใหม่
+    errEl.textContent = ruleMsg; phoneInput.focus();
+    await refresh();
+    return;
+  }
   dlg.close();
   if (res.ok) {
     mine[key] = { id: res.id, token: res.token, name, phone };
@@ -719,6 +753,8 @@ async function saveEdit() {
   busy = true; eok.disabled = true; eerr.textContent = "";
   const res = await api("edit", { pin: adminPin, key, ...(renamed ? { name } : {}), ...(moved ? { to } : {}), ...(rephoned ? { phone } : {}) });
   busy = false; eok.disabled = false;
+  const ruleMsg = ruleMessage(res);
+  if (ruleMsg) { eerr.textContent = ruleMsg; return; }   // เก็บหน้าต่างไว้ ให้ทีมงานเลือกใหม่
   edlg.close();
   if (res.ok && rephoned && res.phone === undefined) {
     toast("เซิร์ฟเวอร์ยังเป็นเวอร์ชันเก่า ไม่ได้บันทึกเบอร์โทร ต้อง Deploy Apps Script เวอร์ชันใหม่ก่อน", 7000);
