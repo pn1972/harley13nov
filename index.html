@@ -156,6 +156,7 @@ header { padding: 22px 0 14px; }
 .sumrow .t { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 14px; }
 .sumrow .who { font-size: 14px; }
 .sumrow .who span { color: var(--ink-soft); font-size: 12px; display: block; }
+.sumrow .who .tel { color: var(--ink); font-size: 13px; display: inline-block; margin-top: 2px; }
 .sumrow.mine { border-color: var(--orange); border-width: 2px; }
 .empty { color: var(--ink-soft); font-size: 14px; padding: 6px 0; }
 .link-btn {
@@ -172,6 +173,7 @@ header { padding: 22px 0 14px; }
 .link-btn.danger:hover { background: #b3261e; color: #fff; }
 @media (prefers-color-scheme: dark) { .link-btn.danger { border-color: #ff8a80; color: #ff8a80; } .link-btn.danger:hover { background: #ff8a80; color: #1b1a18; } }
 .badge { display: inline-block; background: var(--orange); color: var(--orange-ink); font-size: 12px; font-weight: 600; padding: 0 8px; margin-left: 6px; }
+.badge[hidden] { display: none; }   /* display ด้านบนทับ [hidden] ของ browser ถ้าไม่มีบรรทัดนี้ ผู้จองทั่วไปจะเห็นป้ายทีมงาน */
 
 /* Dialog */
 dialog {
@@ -191,6 +193,9 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 }
 .dlg select:disabled { opacity: .6; }
 .dlg .mt { margin-top: 14px; }
+.dlg .hint { margin: 0 0 14px; padding-left: 10px; border-left: 3px solid var(--orange); font-size: 13px; color: var(--ink-soft); }
+a.link-btn { display: inline-flex; align-items: center; text-decoration: none; color: inherit; margin-top: 8px; }
+a.link-btn[hidden] { display: none; }
 .btn.danger { flex: none; width: 100%; margin-top: 10px; border-color: #b3261e; color: #b3261e; }
 .btn.danger:hover { background: #b3261e; color: #fff; }
 @media (prefers-color-scheme: dark) { .btn.danger { border-color: #ff8a80; color: #ff8a80; } .btn.danger:hover { background: #ff8a80; color: #1b1a18; } }
@@ -235,7 +240,7 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
       <div class="daybox" aria-hidden="true"><span class="d">13</span><span class="m">พ.ย. 69</span></div>
       <div class="title">
         <h1>จองคิวนวดและดูดวง</h1>
-        <p>วันศุกร์ที่ 13 พฤศจิกายน 2569<br>แตะช่วงเวลาที่ว่างแล้วใส่ชื่อเพื่อจอง</p>
+        <p>วันศุกร์ที่ 13 พฤศจิกายน 2569<br>แตะช่วงเวลาที่ว่าง แล้วใส่ชื่อและเบอร์โทรศัพท์เพื่อจอง</p>
       </div>
     </div>
   </header>
@@ -255,8 +260,11 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   <div class="dlg">
     <h2 id="dlg-title"></h2>
     <p class="when" id="dlg-when"></p>
+    <p class="hint" id="dlg-hint">กรุณาใส่ชื่อและเบอร์โทรศัพท์ เพื่อให้ทีมงานติดต่อได้สะดวก เช่น ตอนเลื่อนคิวหรือเปลี่ยนเวลา เบอร์โทรไม่แสดงให้ผู้จองคนอื่นเห็น</p>
     <label for="nm">ชื่อผู้จอง</label>
-    <input id="nm" type="text" maxlength="40" autocomplete="name" placeholder="เช่น คุณสมชาย">
+    <input id="nm" type="text" maxlength="40" autocomplete="name" placeholder="เช่น คุณสมชาย" aria-describedby="dlg-hint">
+    <label for="ph" class="mt">เบอร์โทรศัพท์</label>
+    <input id="ph" type="tel" inputmode="tel" maxlength="20" autocomplete="tel" placeholder="เช่น 081-234-5678" aria-describedby="dlg-hint">
     <p class="err" id="dlg-err" role="alert"></p>
     <div class="actions">
       <button class="btn" id="dlg-cancel" type="button">ยกเลิก</button>
@@ -271,6 +279,9 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
     <p class="when" id="edlg-when"></p>
     <label for="enm">ชื่อผู้จอง</label>
     <input id="enm" type="text" maxlength="40" autocomplete="off">
+    <label for="eph" class="mt">เบอร์โทรศัพท์</label>
+    <input id="eph" type="tel" inputmode="tel" maxlength="20" autocomplete="off" placeholder="ยังไม่มีเบอร์โทรศัพท์">
+    <a class="link-btn" id="ecall" href="#" hidden>โทรหาผู้จอง</a>
     <label for="eto" class="mt">ย้ายไปช่วงเวลา</label>
     <select id="eto"></select>
     <p class="err" id="edlg-err" role="alert"></p>
@@ -303,9 +314,24 @@ for (let t = FORTUNE_START; t + FORTUNE_SLOT_MIN <= FORTUNE_END; t += FORTUNE_SL
 const massageKey = (th, t) => `bk:m${th}:${pad(Math.floor(t / 60))}${pad(t % 60)}`;
 const fortuneKey = t => `bk:f1:${pad(Math.floor(t / 60))}${pad(t % 60)}`;
 
+/* ---------- Phone ---------- */
+// รับตัวเลข 9–10 หลักขึ้นต้นด้วย 0 (พิมพ์เว้นวรรค/ขีด หรือขึ้นต้น +66 ได้) คืนค่าว่างถ้ารูปแบบไม่ถูก
+function normPhone(raw) {
+  let d = String(raw == null ? "" : raw).replace(/\D/g, "");
+  if (d.startsWith("66") && (d.length === 10 || d.length === 11)) d = "0" + d.slice(2);
+  return /^0\d{8,9}$/.test(d) ? d : "";
+}
+function fmtPhone(p) {
+  const d = String(p || "");
+  if (/^0\d{9}$/.test(d)) return `${d.slice(0, 3)}-${d.slice(3, 6)}-${d.slice(6)}`;
+  if (/^0\d{8}$/.test(d)) return `${d.slice(0, 2)}-${d.slice(2, 5)}-${d.slice(5)}`;
+  return d;
+}
+const PHONE_FORMAT_HINT = "เบอร์โทรศัพท์ไม่ถูกต้อง ใส่ตัวเลข 9–10 หลัก เช่น 081-234-5678";
+
 /* ---------- Backend ---------- */
 // วาง URL ของ Google Apps Script Web App ตรงนี้ (ถ้ายังไม่วาง จะทำงานโหมดทดลองในเครื่อง)
-const API_URL = "https://script.google.com/macros/s/AKfycbxVDlVcNYsbfOFzYHqBXYQ2NopgFBjIYrHS6u5P3af-v6EJNRYLKLwO3nopuxJyec_QQA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbx3HfL2DECj4O6XgouEwJTRa5ShawREJUhCIsZgtGIKtEjsZYjByty26U9LX2ESSkRSsQ/exec";
 const DEMO = API_URL.startsWith("PASTE");
 
 const LS = {
@@ -316,13 +342,17 @@ const rid = () => Math.random().toString(36).slice(2, 10);
 
 function demoApi(action, p) {
   const all = LS.get("demo_bk") || [];
-  if (action === "list" || action === "adminList")
+  if (action === "list")   // รายการสาธารณะ ไม่มีเบอร์โทร
     return { ok: true, bookings: all.map(b => ({ key: b.key, id: b.id, name: b.name })) };
+  if (action === "adminList")
+    return { ok: true, bookings: all.map(b => ({ key: b.key, id: b.id, name: b.name, phone: b.phone || "" })) };
   if (action === "book") {
+    const phone = normPhone(p.phone);
+    if (!phone) return { ok: false, error: "bad_phone" };
     if (all.some(b => b.key === p.key)) return { ok: false, error: "taken" };
     const id = rid(), token = rid();
-    all.push({ key: p.key, id, token, name: p.name }); LS.set("demo_bk", all);
-    return { ok: true, id, token };
+    all.push({ key: p.key, id, token, name: p.name, phone }); LS.set("demo_bk", all);
+    return { ok: true, id, token, phone };
   }
   if (action === "edit") {
     if (!p.pin) return { ok: false, error: "forbidden" };
@@ -331,14 +361,21 @@ function demoApi(action, p) {
     const hasName = p.name != null;
     const name = hasName ? String(p.name).replace(/\s+/g, " ").trim().slice(0, 40) : "";
     if (hasName && !name) return { ok: false, error: "no_name" };
+    const hasPhone = p.phone != null;
+    let phone = "";
+    if (hasPhone && String(p.phone).trim() !== "") {
+      phone = normPhone(p.phone);
+      if (!phone) return { ok: false, error: "bad_phone" };
+    }
     const to = p.to || p.key;
     if (to !== p.key) {
       if (to.split(":")[1][0] !== p.key.split(":")[1][0]) return { ok: false, error: "wrong_service" };
       if (all.some(x => x.key === to)) return { ok: false, error: "taken" };
     }
     if (hasName) b.name = name;
+    if (hasPhone) b.phone = phone;
     b.key = to; LS.set("demo_bk", all);
-    return { ok: true, key: to, id: b.id };
+    return { ok: true, key: to, id: b.id, phone: hasPhone ? phone : undefined };
   }
   if (action === "reset") {
     const pre = p.scope === "massage" ? "bk:m" : p.scope === "fortune" ? "bk:f" : "bk:";
@@ -369,7 +406,7 @@ async function api(action, payload = {}) {
 }
 
 /* ---------- State ---------- */
-let bookings = {};   // key -> {id, name}
+let bookings = {};   // key -> {id, name, phone} (phone มีเฉพาะในโหมดทีมงาน)
 let mine = LS.get("my_bookings") || {};   // key -> {id, token, name} เก็บในเครื่องผู้จอง
 let tab = "massage";
 let pending = null;
@@ -389,7 +426,7 @@ async function refresh() {
   const res = admin ? await api("adminList", { pin: adminPin }) : await api("list");
   if (res && res.ok) {
     const next = {};
-    for (const b of res.bookings) next[b.key] = { id: b.id, name: b.name };
+    for (const b of res.bookings) next[b.key] = { id: b.id, name: b.name, phone: b.phone || "" };
     bookings = next;
     const byId = {};
     for (const [k, b] of Object.entries(next)) byId[b.id] = k;
@@ -418,10 +455,10 @@ function h(tag, attrs = {}, ...kids) {
   for (const kid of kids.flat()) el.append(kid instanceof Node ? kid : document.createTextNode(kid));
   return el;
 }
-function toast(msg) {
+function toast(msg, ms = 2800) {
   const t = document.getElementById("toast");
   t.textContent = msg; t.hidden = false;
-  clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), 2800);
+  clearTimeout(toast._t); toast._t = setTimeout(() => (t.hidden = true), ms);
 }
 function describe(key) {
   const [, id, hhmm] = key.split(":");
@@ -496,7 +533,8 @@ function renderList() {
       const isMine = owns(e.k);
       g.append(h("div", { class: `sumrow${isMine ? " mine" : ""}` },
         h("div", { class: "t" }, range(e.start, e.dur)),
-        h("div", { class: "who" }, nameOf(e.k), h("span", {}, e.who)),
+        h("div", { class: "who" }, nameOf(e.k), h("span", {}, e.who),
+          admin && e.v.phone ? h("a", { class: "tel", href: `tel:${e.v.phone}` }, fmtPhone(e.v.phone)) : ""),
         admin ? h("button", { class: "link-btn", type: "button", onclick: () => openEdit(e.k) }, "แก้ไข")
           : isMine ? h("button", { class: "link-btn", type: "button", onclick: () => cancelBooking(e.k) }, "ยกเลิก") : ""));
     }
@@ -506,7 +544,7 @@ function renderList() {
   if (admin) {
     wrap.append(h("section", { class: "adminbox" },
       h("h2", {}, "เครื่องมือทีมงาน"),
-      h("p", {}, "แตะช่องที่จองแล้วเพื่อแก้ชื่อ ย้ายคิว หรือยกเลิก ส่วนการล้างรายการเพื่อเริ่มรอบใหม่ ระบบจะให้พิมพ์ RESET ยืนยันก่อนลบทุกครั้ง"),
+      h("p", {}, "แตะช่องที่จองแล้วเพื่อแก้ชื่อ เบอร์โทรศัพท์ ย้ายคิว หรือยกเลิก (เบอร์โทรเห็นได้เฉพาะโหมดทีมงาน) ส่วนการล้างรายการเพื่อเริ่มรอบใหม่ ระบบจะให้พิมพ์ RESET ยืนยันก่อนลบทุกครั้ง"),
       h("div", { class: "adminbtns" },
         h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("massage") }, "ล้างคิวนวด"),
         h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("fortune") }, "ล้างคิวดูดวง"),
@@ -538,6 +576,7 @@ const dlg = document.getElementById("dlg");
 const nameInput = document.getElementById("nm");
 const errEl = document.getElementById("dlg-err");
 const okBtn = document.getElementById("dlg-ok");
+const phoneInput = document.getElementById("ph");
 
 function openDialog(key) {
   pending = key;
@@ -546,8 +585,9 @@ function openDialog(key) {
   document.getElementById("dlg-when").textContent = `${EVENT_DATE_TEXT} · ${range(d.start, d.dur)} น. · ${d.who}`;
   errEl.textContent = "";
   nameInput.value = localStorageSafeName();
+  phoneInput.value = fmtPhone(LS.get("last_phone") || "");
   if (typeof dlg.showModal === "function") dlg.showModal(); else dlg.setAttribute("open", "");
-  nameInput.focus();
+  (nameInput.value && !phoneInput.value ? phoneInput : nameInput).focus();
 }
 function localStorageSafeName() { return LS.get("last_name") || ""; }
 
@@ -555,22 +595,30 @@ async function confirmBooking() {
   if (busy || !pending) return;
   const name = nameInput.value.trim().replace(/\s+/g, " ");
   if (!name) { errEl.textContent = "กรุณาใส่ชื่อผู้จอง"; nameInput.focus(); return; }
+  const rawPhone = phoneInput.value.trim();
+  if (!rawPhone) { errEl.textContent = "กรุณาใส่เบอร์โทรศัพท์"; phoneInput.focus(); return; }
+  const phone = normPhone(rawPhone);
+  if (!phone) { errEl.textContent = PHONE_FORMAT_HINT; phoneInput.focus(); return; }
   busy = true; okBtn.disabled = true; errEl.textContent = "";
   const key = pending;
-  const res = await api("book", { key, name });
+  const res = await api("book", { key, name, phone });
   busy = false; okBtn.disabled = false;
   dlg.close();
   if (res.ok) {
-    mine[key] = { id: res.id, token: res.token, name };
-    LS.set("my_bookings", mine); LS.set("last_name", name);
+    mine[key] = { id: res.id, token: res.token, name, phone };
+    LS.set("my_bookings", mine); LS.set("last_name", name); LS.set("last_phone", phone);
     const d = describe(key);
-    toast(`จองแล้ว: ${d.service} ${hm(d.start)} น. ${name}`);
+    // เซิร์ฟเวอร์เวอร์ชันเก่าจะไม่ส่ง phone กลับมา แปลว่าเบอร์ไม่ถูกบันทึก ต้องบอกให้รู้ ไม่ให้เข้าใจว่าบันทึกแล้ว
+    if (res.phone === undefined) toast(`จองแล้ว: ${d.service} ${hm(d.start)} น. แต่ระบบยังไม่บันทึกเบอร์โทร กรุณาแจ้งทีมงาน`, 7000);
+    else toast(`จองแล้ว: ${d.service} ${hm(d.start)} น. ${name}`);
   } else if (res.error === "taken") {
     toast("ช่วงเวลานี้มีคนจองไปแล้ว กรุณาเลือกช่วงอื่น");
   } else if (res.error === "busy") {
     toast("ระบบกำลังรับจองหลายรายการ ลองใหม่อีกครั้ง");
   } else if (res.error === "invalid_slot") {
     toast("ช่วงเวลานี้ยังไม่เปิดรับจองในระบบ กรุณาแจ้งทีมงาน");
+  } else if (res.error === "bad_phone") {
+    toast("เบอร์โทรศัพท์ไม่ถูกต้อง กรุณาจองใหม่อีกครั้ง");
   } else {
     toast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
   }
@@ -611,6 +659,8 @@ const enm = document.getElementById("enm");
 const eto = document.getElementById("eto");
 const eerr = document.getElementById("edlg-err");
 const eok = document.getElementById("edlg-ok");
+const eph = document.getElementById("eph");
+const ecall = document.getElementById("ecall");
 let editing = null;
 
 function staleServer(res) {
@@ -640,6 +690,9 @@ function openEdit(key) {
   document.getElementById("edlg-when").textContent = `${EVENT_DATE_TEXT} · ${range(d.start, d.dur)} น. · ${d.who}`;
   eerr.textContent = "";
   enm.value = b.name || "";
+  eph.value = fmtPhone(b.phone || "");
+  ecall.hidden = !b.phone;
+  if (b.phone) ecall.setAttribute("href", `tel:${b.phone}`);
   // ย้ายได้เฉพาะช่องว่างในบริการเดียวกัน (นวดกับดูดวงใช้เวลาต่อรอบไม่เท่ากัน)
   const free = keysFor(d.service).filter(k => !bookings[k]);
   eto.replaceChildren(
@@ -657,16 +710,24 @@ async function saveEdit() {
   if (!cur) { edlg.close(); return; }
   const name = enm.value.trim().replace(/\s+/g, " ");
   if (!name) { eerr.textContent = "กรุณาใส่ชื่อผู้จอง"; enm.focus(); return; }
+  const rawPhone = eph.value.trim();
+  const phone = rawPhone ? normPhone(rawPhone) : "";   // เว้นว่าง = ลบเบอร์
+  if (rawPhone && !phone) { eerr.textContent = PHONE_FORMAT_HINT + " หรือเว้นว่างเพื่อลบเบอร์"; eph.focus(); return; }
   const to = eto.value || key;
-  const renamed = name !== cur.name, moved = to !== key;
-  if (!renamed && !moved) { edlg.close(); return; }
+  const renamed = name !== cur.name, moved = to !== key, rephoned = phone !== (cur.phone || "");
+  if (!renamed && !moved && !rephoned) { edlg.close(); return; }
   busy = true; eok.disabled = true; eerr.textContent = "";
-  const res = await api("edit", { pin: adminPin, key, ...(renamed ? { name } : {}), ...(moved ? { to } : {}) });
+  const res = await api("edit", { pin: adminPin, key, ...(renamed ? { name } : {}), ...(moved ? { to } : {}), ...(rephoned ? { phone } : {}) });
   busy = false; eok.disabled = false;
   edlg.close();
-  if (res.ok) {
-    toast(moved && renamed ? `บันทึกแล้ว: ${name} · ${slotLabel(to)}`
-      : moved ? `ย้ายคิวแล้ว: ${cur.name} ไป ${slotLabel(to)}` : `เปลี่ยนชื่อเป็น ${name} แล้ว`);
+  if (res.ok && rephoned && res.phone === undefined) {
+    toast("เซิร์ฟเวอร์ยังเป็นเวอร์ชันเก่า ไม่ได้บันทึกเบอร์โทร ต้อง Deploy Apps Script เวอร์ชันใหม่ก่อน", 7000);
+  } else if (res.ok) {
+    const other = renamed || rephoned;
+    toast(moved ? (other ? `บันทึกแล้ว: ${name} · ${slotLabel(to)}` : `ย้ายคิวแล้ว: ${cur.name} ไป ${slotLabel(to)}`)
+      : renamed && !rephoned ? `เปลี่ยนชื่อเป็น ${name} แล้ว`
+      : !renamed ? (phone ? "บันทึกเบอร์โทรแล้ว" : "ลบเบอร์โทรแล้ว")
+      : `บันทึกแล้ว: ${name}`);
   } else if (staleServer(res)) {
     /* แจ้งไปแล้ว */
   } else if (res.error === "taken") {
@@ -675,6 +736,8 @@ async function saveEdit() {
     toast("ไม่พบคิวนี้ อาจถูกยกเลิกไปแล้ว");
   } else if (res.error === "forbidden") {
     toast("รหัสทีมงานไม่ถูกต้อง");
+  } else if (res.error === "bad_phone") {
+    toast("เบอร์โทรศัพท์ไม่ถูกต้อง");
   } else {
     toast("แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง");
   }
@@ -688,7 +751,7 @@ async function copySummary() {
     lines.push("", `${svc}`);
     const rows = entries.filter(e => e.service === svc).sort((a, b) => a.start - b.start);
     if (!rows.length) lines.push("- ยังไม่มีผู้จอง");
-    rows.forEach(e => lines.push(`- ${range(e.start, e.dur)}  ${nameOf(e.k)} (${e.who})`));
+    rows.forEach(e => lines.push(`- ${range(e.start, e.dur)}  ${nameOf(e.k)}${admin && e.v.phone ? " " + fmtPhone(e.v.phone) : ""} (${e.who})`));
   }
   const text = lines.join("\n");
   try { await navigator.clipboard.writeText(text); toast("คัดลอกรายการแล้ว"); }
@@ -706,12 +769,14 @@ document.getElementById("tab-fortune").onclick = () => { tab = "fortune"; render
 document.getElementById("tab-list").onclick = () => { tab = "list"; render(); };
 document.getElementById("dlg-cancel").onclick = () => dlg.close();
 okBtn.onclick = confirmBooking;
-nameInput.addEventListener("keydown", e => { if (e.key === "Enter") confirmBooking(); });
+nameInput.addEventListener("keydown", e => { if (e.key === "Enter") { e.preventDefault(); phoneInput.focus(); } });
+phoneInput.addEventListener("keydown", e => { if (e.key === "Enter") confirmBooking(); });
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
 document.getElementById("edlg-close").onclick = () => edlg.close();
 eok.onclick = saveEdit;
 document.getElementById("edlg-cancel-booking").onclick = () => { const k = editing; edlg.close(); if (k) cancelBooking(k); };
 enm.addEventListener("keydown", e => { if (e.key === "Enter") saveEdit(); });
+eph.addEventListener("keydown", e => { if (e.key === "Enter") saveEdit(); });
 edlg.addEventListener("click", e => { if (e.target === edlg) edlg.close(); });
 
 (async function init() {
