@@ -52,7 +52,7 @@ body {
   font-size: 16px;
   line-height: 1.6;
 }
-button, input { font: inherit; color: inherit; }
+button, input, select { font: inherit; color: inherit; }
 :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 .wrap { max-width: 720px; margin: 0 auto; padding: 0 14px 64px; }
@@ -186,6 +186,14 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 .dlg input {
   width: 100%; padding: 10px 12px; border: 2px solid var(--ink); background: var(--bg); min-height: 48px;
 }
+.dlg select {
+  width: 100%; padding: 10px 12px; border: 2px solid var(--ink); background: var(--bg); min-height: 48px;
+}
+.dlg select:disabled { opacity: .6; }
+.dlg .mt { margin-top: 14px; }
+.btn.danger { flex: none; width: 100%; margin-top: 10px; border-color: #b3261e; color: #b3261e; }
+.btn.danger:hover { background: #b3261e; color: #fff; }
+@media (prefers-color-scheme: dark) { .btn.danger { border-color: #ff8a80; color: #ff8a80; } .btn.danger:hover { background: #ff8a80; color: #1b1a18; } }
 .dlg .err { color: #b3261e; font-size: 14px; min-height: 22px; margin: 6px 0 0; }
 @media (prefers-color-scheme: dark) { .dlg .err { color: #ff8a80; } }
 .dlg .actions { display: flex; gap: 10px; margin-top: 12px; }
@@ -234,7 +242,7 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
 
   <div class="tabs" role="tablist" aria-label="บริการ">
     <button class="tab" role="tab" id="tab-massage" aria-selected="true" aria-controls="panel">นวด<small id="cnt-massage">ว่าง 27/27</small></button>
-    <button class="tab" role="tab" id="tab-fortune" aria-selected="false" aria-controls="panel">ดูดวง<small id="cnt-fortune">ว่าง 10/10</small></button>
+    <button class="tab" role="tab" id="tab-fortune" aria-selected="false" aria-controls="panel">ดูดวง<small id="cnt-fortune">ว่าง 11/11</small></button>
     <button class="tab" role="tab" id="tab-list" aria-selected="false" aria-controls="panel">รายการจอง<small id="cnt-list">ทั้งหมด 0</small></button>
   </div>
 
@@ -257,13 +265,30 @@ dialog::backdrop { background: rgba(0,0,0,.55); }
   </div>
 </dialog>
 
+<dialog id="edlg" aria-labelledby="edlg-title">
+  <div class="dlg">
+    <h2 id="edlg-title">แก้ไขคิว</h2>
+    <p class="when" id="edlg-when"></p>
+    <label for="enm">ชื่อผู้จอง</label>
+    <input id="enm" type="text" maxlength="40" autocomplete="off">
+    <label for="eto" class="mt">ย้ายไปช่วงเวลา</label>
+    <select id="eto"></select>
+    <p class="err" id="edlg-err" role="alert"></p>
+    <div class="actions">
+      <button class="btn" id="edlg-close" type="button">ปิด</button>
+      <button class="btn primary" id="edlg-ok" type="button">บันทึกการแก้ไข</button>
+    </div>
+    <button class="btn danger" id="edlg-cancel-booking" type="button">ยกเลิกคิวนี้</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast" role="status" hidden></div>
 
 <script>
 /* ---------- Config ---------- */
 const EVENT_DATE_TEXT = "13 พ.ย. 2569";
 const MASSAGE_SLOT_MIN = 20, MASSAGE_START = 15 * 60, MASSAGE_END = 18 * 60;
-const FORTUNE_SLOT_MIN = 30, FORTUNE_START = 15 * 60, FORTUNE_END = 20 * 60;
+const FORTUNE_SLOT_MIN = 30, FORTUNE_START = 15 * 60, FORTUNE_END = 20 * 60 + 30;  // รอบสุดท้าย 20:00–20:30
 const THERAPISTS = [1, 2, 3];
 
 const pad = n => String(n).padStart(2, "0");
@@ -280,7 +305,7 @@ const fortuneKey = t => `bk:f1:${pad(Math.floor(t / 60))}${pad(t % 60)}`;
 
 /* ---------- Backend ---------- */
 // วาง URL ของ Google Apps Script Web App ตรงนี้ (ถ้ายังไม่วาง จะทำงานโหมดทดลองในเครื่อง)
-const API_URL = "https://script.google.com/macros/s/AKfycbw6Hqy7txAmWkVVS1xqs0mnlhknaSTPaeh5s7BmA0WuFqw7ByQt-AmUTPkSM6b41uCEDA/exec";
+const API_URL = "https://script.google.com/macros/s/AKfycbxVDlVcNYsbfOFzYHqBXYQ2NopgFBjIYrHS6u5P3af-v6EJNRYLKLwO3nopuxJyec_QQA/exec";
 const DEMO = API_URL.startsWith("PASTE");
 
 const LS = {
@@ -298,6 +323,22 @@ function demoApi(action, p) {
     const id = rid(), token = rid();
     all.push({ key: p.key, id, token, name: p.name }); LS.set("demo_bk", all);
     return { ok: true, id, token };
+  }
+  if (action === "edit") {
+    if (!p.pin) return { ok: false, error: "forbidden" };
+    const b = all.find(x => x.key === p.key);
+    if (!b) return { ok: false, error: "notfound" };
+    const hasName = p.name != null;
+    const name = hasName ? String(p.name).replace(/\s+/g, " ").trim().slice(0, 40) : "";
+    if (hasName && !name) return { ok: false, error: "no_name" };
+    const to = p.to || p.key;
+    if (to !== p.key) {
+      if (to.split(":")[1][0] !== p.key.split(":")[1][0]) return { ok: false, error: "wrong_service" };
+      if (all.some(x => x.key === to)) return { ok: false, error: "taken" };
+    }
+    if (hasName) b.name = name;
+    b.key = to; LS.set("demo_bk", all);
+    return { ok: true, key: to, id: b.id };
   }
   if (action === "reset") {
     const pre = p.scope === "massage" ? "bk:m" : p.scope === "fortune" ? "bk:f" : "bk:";
@@ -350,8 +391,13 @@ async function refresh() {
     const next = {};
     for (const b of res.bookings) next[b.key] = { id: b.id, name: b.name };
     bookings = next;
+    const byId = {};
+    for (const [k, b] of Object.entries(next)) byId[b.id] = k;
     const kept = {};
-    for (const [k, r] of Object.entries(mine)) if (next[k] && next[k].id === r.id) kept[k] = r;
+    for (const r of Object.values(mine)) {
+      const k = byId[r.id];   // ถ้าทีมงานย้ายหรือเปลี่ยนชื่อ คิวของเราจะตามไปที่ใหม่
+      if (k) kept[k] = { ...r, name: next[k].name || r.name };
+    }
     mine = kept; LS.set("my_bookings", mine);
     setStatus(DEMO ? "โหมดทดลอง: ข้อมูลเก็บในเครื่องนี้เท่านั้น ยังไม่ได้เชื่อมต่อ Google Sheets" : "");
   } else {
@@ -380,8 +426,8 @@ function toast(msg) {
 function describe(key) {
   const [, id, hhmm] = key.split(":");
   const start = parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(2), 10);
-  if (id[0] === "m") return { service: "นวด", who: `หมอนวดคนที่ ${id.slice(1)}`, start, dur: MASSAGE_SLOT_MIN };
-  return { service: "ดูดวง", who: "หมอดู", start, dur: FORTUNE_SLOT_MIN };
+  if (id[0] === "m") return { service: "นวด", who: `ดวง ${id.slice(1)}`, start, dur: MASSAGE_SLOT_MIN };
+  return { service: "ดูดวง", who: "ดวง", start, dur: FORTUNE_SLOT_MIN };
 }
 
 /* ---------- Render ---------- */
@@ -389,13 +435,15 @@ function slotButton(key, cls, label) {
   const b = bookings[key];
   if (b) {
     const isMine = owns(key);
-    const btn = h("button", {
+    const label = admin ? `จองแล้ว โดย ${nameOf(key)} กดเพื่อแก้ไขหรือย้ายคิว`
+      : isMine ? `การจองของคุณ ${nameOf(key)} กดเพื่อยกเลิก` : `จองแล้ว โดย ${nameOf(key)}`;
+    return h("button", {
       class: `slot ${cls} ${isMine ? "mine" : "taken"}`, type: "button",
-      "aria-label": isMine ? `การจองของคุณ ${nameOf(key)} กดเพื่อยกเลิก` : `จองแล้ว โดย ${nameOf(key)}`,
+      "aria-label": label,
       disabled: !(isMine || admin),
-      onclick: () => (isMine || admin) && cancelBooking(key)
-    }, h("span", { class: "nm" }, nameOf(key)), (isMine || admin) ? h("span", { class: "nm", style: "font-size:11px;font-weight:400" }, "แตะเพื่อยกเลิก") : "");
-    return btn;
+      onclick: () => { if (admin) openEdit(key); else if (isMine) cancelBooking(key); }
+    }, h("span", { class: "nm" }, nameOf(key)),
+       (isMine || admin) ? h("span", { class: "nm", style: "font-size:11px;font-weight:400" }, admin ? "แตะเพื่อแก้ไข" : "แตะเพื่อยกเลิก") : "");
   }
   return h("button", { class: `slot ${cls}`, type: "button", onclick: () => openDialog(key) }, label);
 }
@@ -403,10 +451,10 @@ function slotButton(key, cls, label) {
 function renderMassage() {
   const wrap = h("div");
   wrap.append(legend());
-  wrap.append(h("p", { class: "notice" }, "นวด 15:00–18:00 ครั้งละ 20 นาที · หมอนวด 3 คน"));
+  wrap.append(h("p", { class: "notice" }, "นวด 15:00–18:00 ครั้งละ 20 นาที"));
   const board = h("div", { class: "board", role: "table" });
   board.append(h("div", { class: "board-head", role: "row" },
-    h("div"), ...THERAPISTS.map(n => h("div", { role: "columnheader" }, `หมอ ${n}`))));
+    h("div"), ...THERAPISTS.map(n => h("div", { role: "columnheader" }, `ดวง ${n}`))));
   for (const t of MASSAGE_TIMES) {
     board.append(h("div", { class: "board-row", role: "row" },
       h("div", { class: "time", role: "rowheader" }, hm(t)),
@@ -419,7 +467,7 @@ function renderMassage() {
 function renderFortune() {
   const wrap = h("div");
   wrap.append(legend("fortune"));
-  wrap.append(h("p", { class: "notice" }, "ดูดวง 15:00–20:00 ครั้งละ 30 นาที · หมอดู 1 คน"));
+  wrap.append(h("p", { class: "notice" }, "ดูดวง 15:00–20:30 ครั้งละ 30 นาที"));
   const list = h("div", { class: "flist" });
   for (const t of FORTUNE_TIMES) {
     list.append(h("div", { class: "frow" },
@@ -449,7 +497,8 @@ function renderList() {
       g.append(h("div", { class: `sumrow${isMine ? " mine" : ""}` },
         h("div", { class: "t" }, range(e.start, e.dur)),
         h("div", { class: "who" }, nameOf(e.k), h("span", {}, e.who)),
-        (isMine || admin) ? h("button", { class: "link-btn", type: "button", onclick: () => cancelBooking(e.k) }, "ยกเลิก") : ""));
+        admin ? h("button", { class: "link-btn", type: "button", onclick: () => openEdit(e.k) }, "แก้ไข")
+          : isMine ? h("button", { class: "link-btn", type: "button", onclick: () => cancelBooking(e.k) }, "ยกเลิก") : ""));
     }
     return g;
   };
@@ -457,7 +506,7 @@ function renderList() {
   if (admin) {
     wrap.append(h("section", { class: "adminbox" },
       h("h2", {}, "เครื่องมือทีมงาน"),
-      h("p", {}, "ล้างรายการจองเพื่อเริ่มรอบใหม่ ระบบจะให้พิมพ์ RESET ยืนยันก่อนลบทุกครั้ง"),
+      h("p", {}, "แตะช่องที่จองแล้วเพื่อแก้ชื่อ ย้ายคิว หรือยกเลิก ส่วนการล้างรายการเพื่อเริ่มรอบใหม่ ระบบจะให้พิมพ์ RESET ยืนยันก่อนลบทุกครั้ง"),
       h("div", { class: "adminbtns" },
         h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("massage") }, "ล้างคิวนวด"),
         h("button", { class: "link-btn danger", type: "button", onclick: () => resetBookings("fortune") }, "ล้างคิวดูดวง"),
@@ -520,6 +569,8 @@ async function confirmBooking() {
     toast("ช่วงเวลานี้มีคนจองไปแล้ว กรุณาเลือกช่วงอื่น");
   } else if (res.error === "busy") {
     toast("ระบบกำลังรับจองหลายรายการ ลองใหม่อีกครั้ง");
+  } else if (res.error === "invalid_slot") {
+    toast("ช่วงเวลานี้ยังไม่เปิดรับจองในระบบ กรุณาแจ้งทีมงาน");
   } else {
     toast("บันทึกไม่สำเร็จ ตรวจสอบอินเทอร์เน็ตแล้วลองใหม่");
   }
@@ -550,7 +601,83 @@ async function resetBookings(scope) {
     for (const k of Object.keys(mine)) if (k.startsWith(pre)) delete mine[k];
     LS.set("my_bookings", mine);
     toast(`ล้าง${label}แล้ว ${res.count} รายการ`);
-  } else toast("ล้างไม่สำเร็จ ลองใหม่อีกครั้ง");
+  } else if (!staleServer(res)) toast("ล้างไม่สำเร็จ ลองใหม่อีกครั้ง");
+  await refresh();
+}
+
+/* ---------- Admin: แก้ชื่อ / ย้ายคิว ---------- */
+const edlg = document.getElementById("edlg");
+const enm = document.getElementById("enm");
+const eto = document.getElementById("eto");
+const eerr = document.getElementById("edlg-err");
+const eok = document.getElementById("edlg-ok");
+let editing = null;
+
+function staleServer(res) {
+  if (res && res.error === "unknown_action") {
+    toast("เซิร์ฟเวอร์ยังเป็นเวอร์ชันเก่า ต้อง Deploy Apps Script เวอร์ชันใหม่ก่อน");
+    return true;
+  }
+  return false;
+}
+function slotLabel(k) {
+  const d = describe(k);
+  return d.service === "นวด" ? `${range(d.start, d.dur)} · ${d.who}` : range(d.start, d.dur);
+}
+function keysFor(service) {
+  const out = [];
+  if (service === "นวด") { for (const t of MASSAGE_TIMES) for (const n of THERAPISTS) out.push(massageKey(n, t)); }
+  else for (const t of FORTUNE_TIMES) out.push(fortuneKey(t));
+  return out;
+}
+
+function openEdit(key) {
+  const b = bookings[key];
+  if (!b || !admin) return;
+  editing = key;
+  const d = describe(key);
+  document.getElementById("edlg-title").textContent = `แก้ไขคิว${d.service}`;
+  document.getElementById("edlg-when").textContent = `${EVENT_DATE_TEXT} · ${range(d.start, d.dur)} น. · ${d.who}`;
+  eerr.textContent = "";
+  enm.value = b.name || "";
+  // ย้ายได้เฉพาะช่องว่างในบริการเดียวกัน (นวดกับดูดวงใช้เวลาต่อรอบไม่เท่ากัน)
+  const free = keysFor(d.service).filter(k => !bookings[k]);
+  eto.replaceChildren(
+    h("option", { value: key }, `ไม่ย้าย (${slotLabel(key)})`),
+    ...free.map(k => h("option", { value: k }, slotLabel(k))));
+  eto.value = key;
+  eto.disabled = free.length === 0;
+  if (typeof edlg.showModal === "function") edlg.showModal(); else edlg.setAttribute("open", "");
+  enm.focus();
+}
+
+async function saveEdit() {
+  if (busy || !editing) return;
+  const key = editing, cur = bookings[key];
+  if (!cur) { edlg.close(); return; }
+  const name = enm.value.trim().replace(/\s+/g, " ");
+  if (!name) { eerr.textContent = "กรุณาใส่ชื่อผู้จอง"; enm.focus(); return; }
+  const to = eto.value || key;
+  const renamed = name !== cur.name, moved = to !== key;
+  if (!renamed && !moved) { edlg.close(); return; }
+  busy = true; eok.disabled = true; eerr.textContent = "";
+  const res = await api("edit", { pin: adminPin, key, ...(renamed ? { name } : {}), ...(moved ? { to } : {}) });
+  busy = false; eok.disabled = false;
+  edlg.close();
+  if (res.ok) {
+    toast(moved && renamed ? `บันทึกแล้ว: ${name} · ${slotLabel(to)}`
+      : moved ? `ย้ายคิวแล้ว: ${cur.name} ไป ${slotLabel(to)}` : `เปลี่ยนชื่อเป็น ${name} แล้ว`);
+  } else if (staleServer(res)) {
+    /* แจ้งไปแล้ว */
+  } else if (res.error === "taken") {
+    toast("ช่วงเวลาที่เลือกมีคนจองไปแล้ว กรุณาเลือกช่วงอื่น");
+  } else if (res.error === "notfound") {
+    toast("ไม่พบคิวนี้ อาจถูกยกเลิกไปแล้ว");
+  } else if (res.error === "forbidden") {
+    toast("รหัสทีมงานไม่ถูกต้อง");
+  } else {
+    toast("แก้ไขไม่สำเร็จ ลองใหม่อีกครั้ง");
+  }
   await refresh();
 }
 
@@ -581,6 +708,11 @@ document.getElementById("dlg-cancel").onclick = () => dlg.close();
 okBtn.onclick = confirmBooking;
 nameInput.addEventListener("keydown", e => { if (e.key === "Enter") confirmBooking(); });
 dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
+document.getElementById("edlg-close").onclick = () => edlg.close();
+eok.onclick = saveEdit;
+document.getElementById("edlg-cancel-booking").onclick = () => { const k = editing; edlg.close(); if (k) cancelBooking(k); };
+enm.addEventListener("keydown", e => { if (e.key === "Enter") saveEdit(); });
+edlg.addEventListener("click", e => { if (e.target === edlg) edlg.close(); });
 
 (async function init() {
   const wantAdmin = new URLSearchParams(location.search).get("admin") === "1";
@@ -588,14 +720,14 @@ dlg.addEventListener("click", e => { if (e.target === dlg) dlg.close(); });
     const pin = sessionStorage.getItem("pin") || prompt("รหัสสำหรับทีมงาน");
     if (pin) {
       const r = await api("adminList", { pin });
-      if (r.ok) { admin = true; adminPin = pin; sessionStorage.setItem("pin", pin); toast("โหมดทีมงาน: ยกเลิกคิวได้ทุกรายการ"); }
+      if (r.ok) { admin = true; adminPin = pin; sessionStorage.setItem("pin", pin); toast("โหมดทีมงาน: แก้ชื่อ ย้าย หรือยกเลิกคิวได้ทุกรายการ"); }
       else { sessionStorage.removeItem("pin"); toast("รหัสไม่ถูกต้อง"); }
     }
   }
   render();
   refresh();
 })();
-setInterval(() => { if (!dlg.open && !busy && !document.hidden) refresh(); }, 15000);
+setInterval(() => { if (!dlg.open && !edlg.open && !busy && !document.hidden) refresh(); }, 15000);
 document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
 </script>
 </body>
