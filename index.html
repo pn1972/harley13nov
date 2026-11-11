@@ -426,7 +426,7 @@ function toast(msg) {
 function describe(key) {
   const [, id, hhmm] = key.split(":");
   const start = parseInt(hhmm.slice(0, 2), 10) * 60 + parseInt(hhmm.slice(2), 10);
-  if (id[0] === "m") return { service: "นวด", who: `ดวง ${id.slice(1)}`, start, dur: MASSAGE_SLOT_MIN };
+  if (id[0] === "m") return { service: "นวด", who: `นวด ${id.slice(1)}`, start, dur: MASSAGE_SLOT_MIN };
   return { service: "ดูดวง", who: "ดวง", start, dur: FORTUNE_SLOT_MIN };
 }
 
@@ -454,7 +454,7 @@ function renderMassage() {
   wrap.append(h("p", { class: "notice" }, "นวด 15:00–18:00 ครั้งละ 20 นาที"));
   const board = h("div", { class: "board", role: "table" });
   board.append(h("div", { class: "board-head", role: "row" },
-    h("div"), ...THERAPISTS.map(n => h("div", { role: "columnheader" }, `ดวง ${n}`))));
+    h("div"), ...THERAPISTS.map(n => h("div", { role: "columnheader" }, `นวด ${n}`))));
   for (const t of MASSAGE_TIMES) {
     board.append(h("div", { class: "board-row", role: "row" },
       h("div", { class: "time", role: "rowheader" }, hm(t)),
