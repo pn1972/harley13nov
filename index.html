@@ -247,7 +247,7 @@ a.link-btn[hidden] { display: none; }
 
   <div class="tabs" role="tablist" aria-label="บริการ">
     <button class="tab" role="tab" id="tab-massage" aria-selected="true" aria-controls="panel">นวด<small id="cnt-massage">ว่าง 27/27</small></button>
-    <button class="tab" role="tab" id="tab-fortune" aria-selected="false" aria-controls="panel">ดูดวง<small id="cnt-fortune">ว่าง 11/11</small></button>
+    <button class="tab" role="tab" id="tab-fortune" aria-selected="false" aria-controls="panel">ดูดวง<small id="cnt-fortune">ว่าง 13/13</small></button>
     <button class="tab" role="tab" id="tab-list" aria-selected="false" aria-controls="panel">รายการจอง<small id="cnt-list">ทั้งหมด 0</small></button>
   </div>
 
@@ -299,7 +299,7 @@ a.link-btn[hidden] { display: none; }
 /* ---------- Config ---------- */
 const EVENT_DATE_TEXT = "13 พ.ย. 2569";
 const MASSAGE_SLOT_MIN = 20, MASSAGE_START = 15 * 60, MASSAGE_END = 18 * 60;
-const FORTUNE_SLOT_MIN = 30, FORTUNE_START = 15 * 60, FORTUNE_END = 20 * 60 + 30;  // รอบสุดท้าย 20:00–20:30
+const FORTUNE_SLOT_MIN = 30, FORTUNE_START = 14 * 60, FORTUNE_END = 20 * 60 + 30;  // 14:00–20:30 (13 รอบ) เปิดก่อนนวด 1 ชั่วโมง
 const THERAPISTS = [1, 2, 3];
 
 const pad = n => String(n).padStart(2, "0");
@@ -532,7 +532,7 @@ function renderMassage() {
 function renderFortune() {
   const wrap = h("div");
   wrap.append(legend("fortune"));
-  wrap.append(h("p", { class: "notice" }, "ดูดวง 15:00–20:30 ครั้งละ 30 นาที"));
+  wrap.append(h("p", { class: "notice" }, "ดูดวง 14:00–20:30 ครั้งละ 30 นาที"));
   const list = h("div", { class: "flist" });
   for (const t of FORTUNE_TIMES) {
     list.append(h("div", { class: "frow" },
